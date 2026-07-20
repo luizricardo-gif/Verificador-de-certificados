@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verificação de Certificados Acadêmicos | Plataforma Universitária</title>
+  <meta name="description" content="Sistema oficial de validação de certificados acadêmicos emitidos por ligas e instituições de ensino." />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React + ReactDOM (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Fonte institucional -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50:  '#f0f5ff',
+              100: '#dbe6fe',
+              500: '#1e3a8a',
+              600: '#1e3a8a',
+              700: '#1e2f6e',
+              800: '#172554',
+              900: '#0f172a',
+            },
+          },
+          boxShadow: {
+            'soft':    '0 10px 30px -10px rgba(15, 23, 42, 0.15)',
+            'soft-lg': '0 20px 50px -20px rgba(15, 23, 42, 0.25)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    html, body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 0% -10%, #dbe6fe 0%, transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, #e0e7ff 0%, transparent 55%),
+        #f8fafc;
+      min-height: 100vh;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseRing {
+      0%   { transform: scale(0.85); opacity: 0.7; }
+      70%  { transform: scale(1.2);  opacity: 0; }
+      100% { transform: scale(1.2);  opacity: 0; }
+    }
+    .fade-up { animation: fadeUp 0.45s ease-out both; }
+    .pulse-ring { position: relative; }
+    .pulse-ring::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px;
+      background: currentColor;
+      opacity: 0.25;
+      animation: pulseRing 1.6s ease-out infinite;
+    }
+    html { scroll-behavior: smooth; }
+    /* Fallback caso o React nem monte — mostra algo útil */
+    .boot-fallback { display: flex; align-items: center; justify-content: center; min-height: 60vh; color: #475569; font-family: Inter, sans-serif; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div class="boot-fallback">Esta aplicação precisa de JavaScript habilitado para funcionar.</div>
+  </noscript>
+
+  <div id="root">
+    <div class="boot-fallback">Carregando sistema de validação…</div>
+  </div>
+
+  <div id="boot-error" style="display:none;" class="boot-fallback">
+    <div style="max-width: 600px; padding: 24px; background: #fff; border: 1px solid #fecaca; border-radius: 12px; color: #991b1b;">
+      <strong>Erro ao carregar a aplicação.</strong>
+      <p style="margin-top:8px; color:#475569; font-size:14px;">
+        Verifique sua conexão com a internet (os CDNs do React/Tailwind precisam carregar)
+        e abra o console do navegador (F12) para detalhes.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Captura erros globais e mostra fallback visível caso o React não monte
+    window.addEventListener('error', function (e) {
+      var el = document.getElementById('boot-error');
+      if (el) el.style.display = 'flex';
+      console.error('Boot error:', e.error || e.message);
+    });
+  </script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // Guard: precisa do React carregado
+    if (!window.React || !window.ReactDOM) {
+      document.getElementById('boot-error').style.display = 'flex';
+      console.error('React ou ReactDOM não foram carregados pelo CDN.');
+      return;
+    }
+
+    var useState = React.useState;
+    var useRef   = React.useRef;
+    var useEffect = React.useEffect;
+    var useMemo  = React.useMemo;
+    var h = React.createElement;
+
+    /* =========================================================
+       BASE DE DADOS — 80 certificados fictícios
+       ========================================================= */
+    var certificados = [
+      { id: "CERT-001", link: "https://seudominio.com/validar/2024-CARD-78234", aluno: "Daniele de Moura Santos",                 curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-002", link: "https://seudominio.com/validar/2024-ONCO-12847", aluno: "Francisco Janilton Rocha de Sousa",        curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-003", link: "https://seudominio.com/validar/2023-NEUR-64921", aluno: "Miguel Franco Binatto Magalhães",          curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-004", link: "https://seudominio.com/validar/2023-PSIQ-30415", aluno: "Mara Sâmmya do Rego Bastos",               curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-005", link: "https://seudominio.com/validar/2024-DERM-92710", aluno: "Jair Alves",                                curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-006", link: "https://seudominio.com/validar/2024-EMER-13829", aluno: "William Prata Araújo",                      curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-007", link: "https://seudominio.com/validar/2023-MEDC-50417", aluno: "Mariana Macêdo Costa",                     curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-008", link: "https://seudominio.com/validar/2024-CIRU-71280", aluno: "Alisson Salatiek Ferreira de Freitas",      curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-009", link: "https://seudominio.com/validar/2023-GINE-28846", aluno: "Vitória Maria Pedrosa da Silva",            curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-010", link: "https://seudominio.com/validar/2024-PEDI-99321", aluno: "Felipe Francisco Sales de Moura",           curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-011", link: "https://seudominio.com/validar/2023-ENDO-14728", aluno: "Luiz Felipe Sousa Dias",                    curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-012", link: "https://seudominio.com/validar/2024-SPUB-65120", aluno: "Lívia Penha Albuquerque Pierre",            curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-013", link: "https://seudominio.com/validar/2024-TELE-83924", aluno: "Paola Carolino de Lacerda",                 curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-014", link: "https://seudominio.com/validar/2023-ANES-41760", aluno: "Caio Sampaio Amaral Cidreira",              curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-015", link: "https://seudominio.com/validar/2023-ORTO-72951", aluno: "Diogo Evêncio Barreto Campello Luz",         curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-016", link: "https://seudominio.com/validar/2024-MFAM-22417", aluno: "Bruna Amanda de Brito Almeida",             curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-017", link: "https://seudominio.com/validar/2024-INFE-56801", aluno: "Jocyane de Sousa Possidonio dos Santos",    curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-018", link: "https://seudominio.com/validar/2023-BIET-91328", aluno: "Luiza Danúsia Rodrigues De Araújo Leite",   curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-019", link: "https://seudominio.com/validar/2024-OFTA-46217", aluno: "Emilly Iorrana Maria de Sousa Alencar",     curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-020", link: "https://seudominio.com/validar/2023-OTOR-30827", aluno: "Lílyan Moura Sousa Silva",                  curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-021", link: "https://seudominio.com/validar/2024-RADI-71823", aluno: "Maria Clara Rocha",                         curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-022", link: "https://seudominio.com/validar/2024-ESP-11249",  aluno: "Yan Sanches Pineo dos Santos",              curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-023", link: "https://seudominio.com/validar/2023-NUTR-65421", aluno: "Antônio Apolinário de Sousa",               curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-024", link: "https://seudominio.com/validar/2023-FARM-98410", aluno: "Edimilson Bull Fernandes Lima",             curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-025", link: "https://seudominio.com/validar/2024-HEMA-23947", aluno: "Vida Évali Urano Freire",                   curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-026", link: "https://seudominio.com/validar/2024-GERI-87235", aluno: "Laercio Eulalio de Araujo Lima Filho",      curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-027", link: "https://seudominio.com/validar/2023-REUM-41528", aluno: "Victor Matthews Macedo Cruz",               curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-028", link: "https://seudominio.com/validar/2024-GENE-76120", aluno: "Manoel de Jesus Alencar Sobrinho",          curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-029", link: "https://seudominio.com/validar/2023-NEFR-31290", aluno: "Jessé Carolino de Lacerda",                 curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-030", link: "https://seudominio.com/validar/2023-PNEU-91847", aluno: "Leyan Silva Guimarães",                     curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-031", link: "https://seudominio.com/validar/2024-GAST-56214", aluno: "Lara Darcilia Pinheiro Bezerra",            curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-032", link: "https://seudominio.com/validar/2024-PESQ-18023", aluno: "Alysson Vinícius Valente de Miranda",       curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-033", link: "https://seudominio.com/validar/2023-MEDG-73421", aluno: "Mariana Bizzo Lavôr Baptista",              curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-034", link: "https://seudominio.com/validar/2024-MULT-49827", aluno: "GABRIEL VIANA DINIZ SABOIA",                curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-035", link: "https://seudominio.com/validar/2024-MULH-31208", aluno: "Isadora Rios Magalhães Lima",               curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-036", link: "https://seudominio.com/validar/2023-EDMD-86219", aluno: "João Pedro Almeida",           curso: "Congresso de Educação Médica",                   instituicao: "Liga de Saúde da Mulher da USP",                dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-037", link: "https://seudominio.com/validar/2024-IASA-54028", aluno: "Sabrina Oliveira Campos",      curso: "Workshop de Inteligência Artificial em Saúde",  instituicao: "Liga de Educação Médica da UNIFESP",            dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-038", link: "https://seudominio.com/validar/2023-CLMED-71284",aluno: "Marcos Antônio Pereira",       curso: "Jornada de Clínica Médica",                      instituicao: "Liga de IA em Saúde da Unicamp",                 dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-039", link: "https://seudominio.com/validar/2024-SMEN-92617", aluno: "Adriana Kelly Santos",         curso: "Simpósio de Saúde Mental",                       instituicao: "Liga de Clínica Médica da UFG",                 dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-040", link: "https://seudominio.com/validar/2023-BSTA-24180", aluno: "Roberto Carlos Mendes",        curso: "Curso de Bioestatística Aplicada",               instituicao: "Liga de Saúde Mental da UFBA",                  dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-041", link: "https://seudominio.com/validar/2024-EPID-71835", aluno: "Cláudia Regina Lopes",         curso: "Workshop de Epidemiologia",                      instituicao: "Liga de Medicina Tropical da UFPE",             dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-042", link: "https://seudominio.com/validar/2023-IMUN-39217", aluno: "Paulo Sérgio Rodrigues",       curso: "Jornada de Imunologia Clínica",                  instituicao: "Liga de Alergia e Imunologia da USP",            dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-043", link: "https://seudominio.com/validar/2024-MDTB-82416", aluno: "Simone Aparecida Faria",       curso: "Simpósio de Medicina do Trabalho",               instituicao: "Liga de Anatomia da UFMG",                      dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-044", link: "https://seudominio.com/validar/2023-AUDS-13428", aluno: "Jorge Eduardo Santos",         curso: "Curso de Auditoria em Saúde",                    instituicao: "Liga de Histologia da UFRJ",                    dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-045", link: "https://seudominio.com/validar/2024-LIDM-91827", aluno: "Mônica Cristina Castro",       curso: "Workshop de Liderança Médica",                   instituicao: "Liga de Fisiologia da UNIFESP",                 dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-046", link: "https://seudominio.com/validar/2023-TECS-52618", aluno: "André Luiz Pereira",           curso: "Congresso de Tecnologia em Saúde",               instituicao: "Liga de Parasitologia da UFRGS",                dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-047", link: "https://seudominio.com/validar/2024-CPAL-30248", aluno: "Roberta de Oliveira",          curso: "Jornada de Cuidados Paliativos",                 instituicao: "Liga de Microbiologia da UFBA",                 dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-048", link: "https://seudominio.com/validar/2023-MBEV-71423", aluno: "Sérgio Henrique Lima",         curso: "Simpósio de Medicina Baseada em Evidências",     instituicao: "Liga de Toxicologia da UFPB",                   dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-049", link: "https://seudominio.com/validar/2024-CMED-91826", aluno: "Cristiane Soares da Silva",    curso: "Curso de Comunicação Médica",                    instituicao: "Liga de Farmacologia Aplicada da UECE",         dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-050", link: "https://seudominio.com/validar/2023-PROC-47219", aluno: "Fábio Augusto Mendes",         curso: "Workshop de Procedimentos Invasivos",            instituicao: "Liga de Patologia da Unicamp",                  dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-051", link: "https://seudominio.com/validar/2024-MEDT-18329", aluno: "Denise Maria Costa",           curso: "Jornada de Medicina Tropical",                   instituicao: "Liga de Semiologia da UFPR",                    dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-052", link: "https://seudominio.com/validar/2023-ALIM-92641", aluno: "Marcelo Vieira Santos",        curso: "Simpósio de Alergia e Imunologia",               instituicao: "Liga de Propedêutica da UFG",                   dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-053", link: "https://seudominio.com/validar/2024-ANAT-41278", aluno: "Luciana Pereira Gomes",        curso: "Curso de Anatomia Clínica",                      instituicao: "Liga de Psiquiatria Forense da USP",             dataEmissao: "20/07/2026", cargaHoraria: "80 horas" },
+      { id: "CERT-054", link: "https://seudominio.com/validar/2023-HIST-62719", aluno: "Carlos Eduardo Rocha",         curso: "Workshop de Histologia Patológica",              instituicao: "Liga de Medicina Legal da UNIFESP",             dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-055", link: "https://seudominio.com/validar/2024-FISI-30927", aluno: "Tatiane Cristina Alves",       curso: "Jornada de Fisiologia Humana",                   instituicao: "Liga de Saúde Coletiva da UFMG",                dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-056", link: "https://seudominio.com/validar/2023-PARA-81327", aluno: "Fernando Augusto Pinto",       curso: "Simpósio de Parasitologia Médica",               instituicao: "Liga de Epidemiologia Molecular da UFRJ",       dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-057", link: "https://seudominio.com/validar/2024-MCRO-71834", aluno: "Márcia Helena Barbosa",        curso: "Curso de Microbiologia Clínica",                 instituicao: "Liga de Urgência e Emergência da UFPE",         dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-058", link: "https://seudominio.com/validar/2023-TOXC-41628", aluno: "Luís Fernando Cardoso",        curso: "Workshop de Toxicologia",                        instituicao: "Liga de Terapia Intensiva da UFRGS",            dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-059", link: "https://seudominio.com/validar/2024-FARM-91823", aluno: "Sabrina Kelly Martins",        curso: "Jornada de Farmacologia",                        instituicao: "Liga de Ventilação Mecânica da UFBA",            dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-060", link: "https://seudominio.com/validar/2023-PATG-31248", aluno: "Pedro Augusto Oliveira",       curso: "Simpósio de Patologia Geral",                    instituicao: "Liga de Acesso Vascular da UFPB",                dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-061", link: "https://seudominio.com/validar/2024-SEMI-71820", aluno: "Camila de Souza Rocha",        curso: "Curso de Semiologia Médica",                     instituicao: "Liga de Hemodinâmica da Unicamp",               dataEmissao: "20/07/2026", cargaHoraria: "80 horas" },
+      { id: "CERT-062", link: "https://seudominio.com/validar/2023-PROP-91623", aluno: "José Ricardo Almeida",         curso: "Workshop de Propedêutica",                       instituicao: "Liga de Cardiologia Intervencionista da USP",    dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-063", link: "https://seudominio.com/validar/2024-PSIF-82716", aluno: "Fernanda Kelly Santos",        curso: "Jornada de Psiquiatria Forense",                 instituicao: "Liga de Eletrocardiografia da UNIFESP",         dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-064", link: "https://seudominio.com/validar/2023-LEGAL-31824",aluno: "Antonio Carlos Silva",         curso: "Simpósio de Medicina Legal",                     instituicao: "Liga de Ecocardiografia da UFMG",               dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-065", link: "https://seudominio.com/validar/2024-SCOL-72618", aluno: "Paula Cristina Pereira",       curso: "Curso de Saúde Coletiva",                        instituicao: "Liga de Imagem Cardiovascular da UFRJ",         dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-066", link: "https://seudominio.com/validar/2023-EPMOL-81923",aluno: "Eduardo Henrique Gomes",       curso: "Workshop de Epidemiologia Molecular",            instituicao: "Liga de Hipertensão da UFPE",                    dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-067", link: "https://seudominio.com/validar/2024-URGE-31820", aluno: "Renata Soares Lima",           curso: "Jornada de Urgência e Emergência",               instituicao: "Liga de Diabetes da UFRGS",                     dataEmissao: "20/07/2026", cargaHoraria: "80 horas" },
+      { id: "CERT-068", link: "https://seudominio.com/validar/2023-UTI-91724",  aluno: "Gustavo Augusto Reis",         curso: "Simpósio de Terapia Intensiva",                  instituicao: "Liga de Obesidade e Síndrome Metabólica da UFBA",dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-069", link: "https://seudominio.com/validar/2024-VMEC-31829", aluno: "Bianca Cristina Faria",        curso: "Curso de Ventilação Mecânica",                   instituicao: "Liga de Tireoide da UFPB",                       dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-070", link: "https://seudominio.com/validar/2023-ACVS-72819", aluno: "Ricardo Augusto Mendes",       curso: "Workshop de Acesso Vascular",                    instituicao: "Liga de Adrenal e Hipófise da Unicamp",         dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-071", link: "https://seudominio.com/validar/2024-HMOD-82913", aluno: "Carolina Kelly Castro",        curso: "Jornada de Hemodinâmica",                        instituicao: "Liga de Reprodução Humana da USP",               dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-072", link: "https://seudominio.com/validar/2023-CINT-12837", aluno: "Felipe Eduardo Martins",       curso: "Simpósio de Cardiologia Intervencionista",       instituicao: "Liga de Contracepção da UNIFESP",                dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-073", link: "https://seudominio.com/validar/2024-ECG-71829",  aluno: "Amanda Cristina Souza",        curso: "Curso de Eletrocardiografia",                    instituicao: "Liga de Climatério da UFMG",                     dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-074", link: "https://seudominio.com/validar/2023-ECO-31924",  aluno: "Lucas Augusto Pereira",        curso: "Workshop de Ecocardiografia",                    instituicao: "Liga de Patologia Cervical da UFRJ",            dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-075", link: "https://seudominio.com/validar/2024-IMC-91823",  aluno: "Juliana Kelly Almeida",        curso: "Jornada de Imagem Cardiovascular",               instituicao: "Liga de Mastologia da UFPE",                     dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-076", link: "https://seudominio.com/validar/2023-HAS-41827",  aluno: "Bruno Henrique Santos",        curso: "Simpósio de Hipertensão Arterial",               instituicao: "Liga de Oncologia Mamária da UFRGS",            dataEmissao: "20/07/2026", cargaHoraria: "30 horas" },
+      { id: "CERT-077", link: "https://seudominio.com/validar/2024-DM-71824",   aluno: "Larissa Cristina Oliveira",    curso: "Curso de Diabetes Mellitus",                     instituicao: "Liga de Cardiologia Pediátrica da UFBA",         dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
+      { id: "CERT-078", link: "https://seudominio.com/validar/2023-OBS-91823",  aluno: "Diego Augusto Lima",           curso: "Workshop de Obesidade e Síndrome Metabólica",    instituicao: "Liga de Neonatologia da UFPB",                   dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
+      { id: "CERT-079", link: "https://seudominio.com/validar/2024-TIR-31928",  aluno: "Patricia Kelly Gomes",         curso: "Jornada de Tireoide",                            instituicao: "Liga de Nutrição Materno-Infantil da USP",       dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
+      { id: "CERT-080", link: "https://seudominio.com/validar/2023-ADR-91823",  aluno: "Vinícius Eduardo Castro",      curso: "Simpósio de Adrenal e Hipófise",                 instituicao: "Liga de Aleitamento Materno da UNIFESP",         dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+    ];
+
+    /* =========================================================
+       Helpers
+       ========================================================= */
+    function classNames() {
+      var args = Array.prototype.slice.call(arguments);
+      return args.filter(Boolean).join(' ');
+    }
+
+    function Icon(name, props) {
+      props = props || {};
+      var base = {
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.8,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        width: 20,
+        height: 20
+      };
+      var p = {};
+      var k;
+      for (k in base)  p[k] = base[k];
+      for (k in props) p[k] = props[k];
+
+      switch (name) {
+        case 'Shield':
+          return h('svg', p,
+            h('path', { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" }),
+            h('path', { d: "m9 12 2 2 4-4" })
+          );
+        case 'Check':
+          p.strokeWidth = 2.4;
+          return h('svg', p, h('path', { d: "M20 6 9 17l-5-5" }));
+        case 'X':
+          p.strokeWidth = 2.4;
+          return h('svg', p,
+            h('path', { d: "M18 6 6 18" }),
+            h('path', { d: "M6 6l12 12" })
+          );
+        case 'Link':
+          return h('svg', p,
+            h('path', { d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" }),
+            h('path', { d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" })
+          );
+        case 'User':
+          return h('svg', p,
+            h('path', { d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" }),
+            h('circle', { cx: 12, cy: 7, r: 4 })
+          );
+        case 'Book':
+          return h('svg', p,
+            h('path', { d: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20" }),
+            h('path', { d: "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" })
+          );
+        case 'Building':
+          return h('svg', p,
+            h('rect', { x: 3, y: 3, width: 18, height: 18, rx: 2 }),
+            h('path', { d: "M8 7h.01M12 7h.01M16 7h.01M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8" })
+          );
+        case 'Calendar':
+          return h('svg', p,
+            h('rect', { x: 3, y: 4, width: 18, height: 18, rx: 2 }),
+            h('path', { d: "M16 2v4M8 2v4M3 10h18" })
+          );
+        case 'Clock':
+          return h('svg', p,
+            h('circle', { cx: 12, cy: 12, r: 10 }),
+            h('path', { d: "M12 6v6l4 2" })
+          );
+        case 'Search':
+          p.strokeWidth = 2;
+          return h('svg', p,
+            h('circle', { cx: 11, cy: 11, r: 8 }),
+            h('path', { d: "m21 21-4.3-4.3" })
+          );
+        case 'Copy':
+          return h('svg', p,
+            h('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+            h('path', { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
+          );
+        case 'CheckCopy':
+          p.strokeWidth = 2.2;
+          return h('svg', p, h('path', { d: "M20 6 9 17l-5-5" }));
+        case 'Alert':
+          return h('svg', p,
+            h('path', { d: "m10.29 3.86-8.18 14.16A2 2 0 0 0 3.84 21h16.32a2 2 0 0 0 1.73-2.98L13.71 3.86a2 2 0 0 0-3.42 0z" }),
+            h('path', { d: "M12 9v4M12 17h.01" })
+          );
+        case 'Info':
+          return h('svg', p,
+            h('circle', { cx: 12, cy: 12, r: 10 }),
+            h('path', { d: "M12 16v-4M12 8h.01" })
+          );
+        case 'Lock':
+          return h('svg', p,
+            h('rect', { x: 3, y: 11, width: 18, height: 11, rx: 2 }),
+            h('path', { d: "M7 11V7a5 5 0 0 1 10 0v4" })
+          );
+        case 'Spinner':
+          p = {
+            viewBox: "0 0 24 24",
+            fill: "none",
+            width: 20, height: 20,
+            className: "animate-spin"
+          };
+          return h('svg', p,
+            h('circle', { cx: 12, cy: 12, r: 10, stroke: "currentColor", strokeOpacity: 0.25, strokeWidth: 3 }),
+            h('path', { d: "M22 12a10 10 0 0 1-10 10", stroke: "currentColor", strokeWidth: 3, strokeLinecap: "round" })
+          );
+      }
+      return null;
+    }
+
+    /* =========================================================
+       Componentes
+       ========================================================= */
+    function Header() {
+      return h('header', { className: "border-b border-slate-200/70 bg-white/70 backdrop-blur-md sticky top-0 z-30" },
+        h('div', { className: "max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between" },
+          h('div', { className: "flex items-center gap-3" },
+            h('div', { className: "w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-brand-800 to-brand-500 text-white flex items-center justify-center shadow-soft" },
+              Icon('Shield', { width: 22, height: 22 })
+            ),
+            h('div', { className: "leading-tight" },
+              h('p', { className: "text-[11px] uppercase tracking-widest text-slate-500 font-semibold" }, "Validação Oficial"),
+              h('h1', { className: "text-sm sm:text-base font-bold text-slate-900" }, "Sistema Acadêmico de Certificados")
+            )
+          ),
+          h('div', { className: "hidden sm:flex items-center gap-2 text-xs text-slate-500" },
+            Icon('Lock', { width: 16, height: 16 }),
+            h('span', null, "Conexão segura · SSL")
+          )
+        )
+      );
+    }
+
+    function Hero() {
+      return h('section', { className: "max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-14 pb-6 text-center" },
+        h('span', { className: "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-100 text-brand-500 text-xs font-semibold mb-4" },
+          Icon('Shield', { width: 14, height: 14 }),
+          "Plataforma de Autenticação Digital"
+        ),
+        h('h2', { className: "text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight" },
+          "Verifique a autenticidade de ",
+          h('br', { className: "hidden sm:block" }),
+          h('span', { className: "text-brand-500" }, "certificados acadêmicos")
+        ),
+        h('p', { className: "mt-4 sm:mt-5 text-slate-600 text-sm sm:text-base max-w-2xl mx-auto" },
+          "Cole abaixo o link de validação recebido junto com o seu certificado. Nossa base de dados consultará os registros oficiais das ligas e instituições parceiras."
+        )
+      );
+    }
+
+    function VerifyForm(props) {
+      var _link = useState('');
+      var link = _link[0], setLink = _link[1];
+      var _err = useState('');
+      var err = _err[0], setErr = _err[1];
+      var inputRef = useRef(null);
+
+      useEffect(function () { if (inputRef.current) inputRef.current.focus(); }, []);
+
+      function submit(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var trimmed = (link || '').trim();
+        if (!trimmed) { setErr('Por favor, insira o link de validação do certificado.'); return; }
+        if (!/^https?:\/\//i.test(trimmed)) { setErr('O link deve começar com http:// ou https://'); return; }
+        setErr('');
+        props.onVerify(trimmed);
+      }
+
+      function fillExample(url) {
+        setLink(url); setErr(''); if (inputRef.current) inputRef.current.focus();
+      }
+
+      return h('section', { className: "max-w-3xl mx-auto px-4 sm:px-6" },
+        h('form', { onSubmit: submit, className: "bg-white rounded-2xl shadow-soft-lg border border-slate-200/70 p-4 sm:p-6" },
+          h('label', { htmlFor: "link", className: "block text-sm font-semibold text-slate-700 mb-2" },
+            "Link de validação do certificado"
+          ),
+          h('div', { className: "flex flex-col sm:flex-row gap-3" },
+            h('div', { className: "relative flex-1" },
+              h('div', { className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" },
+                Icon('Link', { width: 20, height: 20 })
+              ),
+              h('input', {
+                ref: inputRef,
+                id: "link",
+                type: "text",
+                value: link,
+                onChange: function (e) { setLink(e.target.value); if (err) setErr(''); },
+                placeholder: "https://seudominio.com/validar/2024-CARD-78234",
+                className: classNames(
+                  "w-full pl-11 pr-4 py-3 rounded-xl border bg-slate-50 text-slate-900 placeholder-slate-400 outline-none transition",
+                  err
+                    ? 'border-rose-400 focus:ring-2 focus:ring-rose-200'
+                    : 'border-slate-300 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
+                ),
+                autoComplete: "off",
+                spellCheck: "false"
+              })
+            ),
+            h('button', {
+              type: "submit",
+              disabled: props.loading,
+              className: classNames(
+                "inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white",
+                "bg-gradient-to-br from-brand-800 to-brand-500 hover:from-brand-700 hover:to-brand-500",
+                "active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed",
+                "shadow-soft transition-all"
+              )
+            },
+              props.loading
+                ? h(React.Fragment, null,
+                    Icon('Spinner'),
+                    "Verificando..."
+                  )
+                : h(React.Fragment, null,
+                    Icon('Shield', { width: 20, height: 20 }),
+                    "Verificar Certificado"
+                  )
+            )
+          ),
+          err ? h('p', { className: "mt-3 flex items-center gap-2 text-sm text-rose-600" },
+            Icon('Alert', { width: 16, height: 16 }), " ", err
+          ) : null
+        )
+      );
+    }
+
+    function MetaRow(props) {
+      return h('div', { className: "flex items-start gap-3 py-3 border-b border-slate-100 last:border-0" },
+        h('div', { className: "mt-0.5 w-9 h-9 shrink-0 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center" },
+          Icon(props.icon, { width: 18, height: 18 })
+        ),
+        h('div', { className: "min-w-0 flex-1" },
+          h('p', { className: "text-[11px] uppercase tracking-wider font-semibold text-slate-500" }, props.label),
+          h('p', { className: classNames(props.mono ? "font-mono text-sm break-all" : "font-medium", "text-slate-900 mt-0.5") },
+            props.value
+          )
+        )
+      );
+    }
+
+    function CopyButton(props) {
+      var _c = useState(false);
+      var copied = _c[0], setCopied = _c[1];
+      function handleCopy() {
+        var text = props.text;
+        function fallback() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(fallback);
+        } else {
+          fallback();
+        }
+        setCopied(true);
+        setTimeout(function () { setCopied(false); }, 1800);
+      }
+      return h('button', {
+        onClick: handleCopy,
+        className: classNames(
+          "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md border transition",
+          copied
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+        ),
+        'aria-label': "Copiar link"
+      },
+        copied ? Icon('CheckCopy', { width: 14, height: 14 }) : Icon('Copy', { width: 14, height: 14 }),
+        copied ? 'Copiado' : 'Copiar'
+      );
+    }
+
+    function ValidCard(props) {
+      var d = props.data;
+      return h('article', { className: "fade-up bg-white rounded-2xl shadow-soft-lg border border-emerald-200 overflow-hidden" },
+        h('div', { className: "relative bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-5 sm:px-7 py-5 sm:py-6 flex items-center gap-4" },
+          h('div', { className: "relative w-14 h-14 rounded-full bg-white/15 flex items-center justify-center pulse-ring text-white" },
+            Icon('Check', { width: 32, height: 32 })
+          ),
+          h('div', null,
+            h('p', { className: "text-[11px] uppercase tracking-widest font-semibold text-emerald-100" }, "Status do documento"),
+            h('h3', { className: "text-xl sm:text-2xl font-extrabold leading-tight" }, "Certificado Autêntico")
+          ),
+          h('span', { className: "ml-auto hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 px-3 py-1.5 rounded-full" },
+            Icon('Lock', { width: 14, height: 14 }), "Verificado"
+          )
+        ),
+        h('div', { className: "px-5 sm:px-7 py-4" },
+          h('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-x-8" },
+            h('div', null,
+              h(MetaRow, { icon: 'User',     label: "Aluno",            value: d.aluno }),
+              h(MetaRow, { icon: 'Book',     label: "Curso / Evento",   value: d.curso }),
+              h(MetaRow, { icon: 'Building', label: "Instituição",      value: d.instituicao })
+            ),
+            h('div', null,
+              h(MetaRow, { icon: 'Calendar', label: "Data de Emissão",  value: d.dataEmissao }),
+              h(MetaRow, { icon: 'Clock',    label: "Carga Horária",    value: d.cargaHoraria }),
+              h(MetaRow, { icon: 'Shield',   label: "ID do Registro",   value: d.id, mono: true })
+            )
+          ),
+          h('div', { className: "mt-4 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" },
+            h('div', { className: "min-w-0" },
+              h('p', { className: "text-[11px] uppercase tracking-wider font-semibold text-slate-500" }, "Link validado"),
+              h('p', { className: "font-mono text-xs sm:text-sm text-slate-700 truncate" }, d.link)
+            ),
+            h(CopyButton, { text: d.link })
+          )
+        )
+      );
+    }
+
+    function InvalidCard(props) {
+      return h('article', { className: "fade-up bg-white rounded-2xl shadow-soft-lg border border-rose-200 overflow-hidden" },
+        h('div', { className: "relative bg-gradient-to-r from-rose-600 to-rose-500 text-white px-5 sm:px-7 py-5 sm:py-6 flex items-center gap-4" },
+          h('div', { className: "w-14 h-14 rounded-full bg-white/15 flex items-center justify-center" },
+            Icon('X', { width: 32, height: 32 })
+          ),
+          h('div', null,
+            h('p', { className: "text-[11px] uppercase tracking-widest font-semibold text-rose-100" }, "Status do documento"),
+            h('h3', { className: "text-xl sm:text-2xl font-extrabold leading-tight" }, "Certificado não encontrado")
+          )
+        ),
+        h('div', { className: "px-5 sm:px-7 py-6" },
+          h('p', { className: "text-slate-700" },
+            "O link informado ",
+            h('span', { className: "font-semibold" }, "não consta em nossos registros"),
+            ". Isso pode significar que o certificado é inválido, foi adulterado ou ainda não foi cadastrado em nossa base de dados."
+          ),
+          props.searchedLink ? h('div', { className: "mt-4 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3" },
+            h('p', { className: "text-[11px] uppercase tracking-wider font-semibold text-rose-700" }, "Link pesquisado"),
+            h('p', { className: "font-mono text-xs sm:text-sm text-rose-900 break-all" }, props.searchedLink)
+          ) : null,
+          h('div', { className: "mt-5 grid sm:grid-cols-3 gap-3 text-sm" },
+            h('div', { className: "flex items-start gap-2 text-slate-600" },
+              Icon('Alert', { width: 16, height: 16, style: { color: '#f43f5e', marginTop: 2 } }),
+              h('span', null, "Confira se copiou o link completo.")
+            ),
+            h('div', { className: "flex items-start gap-2 text-slate-600" },
+              Icon('Alert', { width: 16, height: 16, style: { color: '#f43f5e', marginTop: 2 } }),
+              h('span', null, "Verifique com a instituição emissora.")
+            ),
+            h('div', { className: "flex items-start gap-2 text-slate-600" },
+              Icon('Alert', { width: 16, height: 16, style: { color: '#f43f5e', marginTop: 2 } }),
+              h('span', null, "Desconfie de documentos falsificados.")
+            )
+          ),
+          h('div', { className: "mt-6 flex flex-wrap gap-3" },
+            h('button', {
+              onClick: props.onRetry,
+              className: "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white bg-brand-500 hover:bg-brand-700 transition"
+            },
+              Icon('Search', { width: 16, height: 16 }),
+              "Tentar novamente"
+            )
+          )
+        )
+      );
+    }
+
+    function Stats() {
+      var instCount = useMemo(function () {
+        var s = {};
+        for (var i = 0; i < certificados.length; i++) s[certificados[i].instituicao] = 1;
+        return Object.keys(s).length;
+      }, []);
+      var cursoCount = useMemo(function () {
+        var s = {};
+        for (var i = 0; i < certificados.length; i++) s[certificados[i].curso] = 1;
+        return Object.keys(s).length;
+      }, []);
+      var totalHoras = useMemo(function () {
+        var t = 0;
+        for (var i = 0; i < certificados.length; i++) {
+          var n = parseInt(certificados[i].cargaHoraria, 10);
+          if (!isNaN(n)) t += n;
+        }
+        return t.toLocaleString('pt-BR') + 'h';
+      }, []);
+
+      var items = [
+        { label: "Registros",            value: certificados.length },
+        { label: "Instituições",         value: instCount },
+        { label: "Cursos validados",     value: cursoCount },
+        { label: "Carga horária total",  value: totalHoras }
+      ];
+      return h('section', { className: "max-w-5xl mx-auto px-4 sm:px-6 mt-10 sm:mt-14" },
+        h('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" },
+          items.map(function (it) {
+            return h('div', { key: it.label, className: "bg-white/80 backdrop-blur border border-slate-200 rounded-xl px-4 py-3 sm:py-4 text-center" },
+              h('p', { className: "text-xl sm:text-2xl font-extrabold text-brand-500" }, it.value),
+              h('p', { className: "text-[11px] sm:text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1" }, it.label)
+            );
+          })
+        )
+      );
+    }
+
+    function HowItWorks() {
+      var steps = [
+        { n: 1, t: "Receba o link",   d: "A instituição emissora envia um link único de validação junto ao certificado." },
+        { n: 2, t: "Cole e verifique", d: "Insira o link no campo acima e clique em 'Verificar Certificado'." },
+        { n: 3, t: "Consulte o registro", d: "Veja os dados oficiais do aluno, curso, carga horária e data de emissão." }
+      ];
+      return h('section', { className: "max-w-5xl mx-auto px-4 sm:px-6 mt-10 sm:mt-14" },
+        h('h3', { className: "text-center text-lg sm:text-xl font-bold text-slate-900" }, "Como funciona"),
+        h('p', { className: "text-center text-slate-500 text-sm mt-1" }, "Em três passos simples"),
+        h('div', { className: "mt-6 grid sm:grid-cols-3 gap-4" },
+          steps.map(function (s) {
+            return h('div', { key: s.n, className: "bg-white rounded-2xl border border-slate-200 p-5 shadow-soft" },
+              h('div', { className: "w-9 h-9 rounded-lg bg-brand-100 text-brand-500 font-bold flex items-center justify-center" }, s.n),
+              h('h4', { className: "mt-3 font-semibold text-slate-900" }, s.t),
+              h('p', { className: "text-sm text-slate-600 mt-1" }, s.d)
+            );
+          })
+        )
+      );
+    }
+
+    function Footer() {
+      var year = new Date().getFullYear();
+      return h('footer', { className: "mt-14 sm:mt-20 border-t border-slate-200/70 bg-white/60 backdrop-blur" },
+        h('div', { className: "max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500" },
+          h('p', null, "© " + year + " Plataforma de Validação Acadêmica — Todos os direitos reservados."),
+          h('p', { className: "flex items-center gap-1.5" },
+            Icon('Lock', { width: 14, height: 14 }),
+            "Sistema protegido por criptografia"
+          )
+        )
+      );
+    }
+
+    function App() {
+      var _loading = useState(false);
+      var loading = _loading[0], setLoading = _loading[1];
+      var _result = useState(null);
+      var result = _result[0], setResult = _result[1];
+      var resultRef = useRef(null);
+
+      function handleVerify(link) {
+        setLoading(true);
+        setResult(null);
+        setTimeout(function () {
+          var normalized = (link || '').trim().toLowerCase();
+          var found = null;
+          for (var i = 0; i < certificados.length; i++) {
+            if (certificados[i].link.toLowerCase() === normalized) { found = certificados[i]; break; }
+          }
+          if (found) setResult({ status: 'valid', data: found, searchedLink: link.trim() });
+          else       setResult({ status: 'invalid', searchedLink: link.trim() });
+          setLoading(false);
+          setTimeout(function () {
+            if (resultRef.current) resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 80);
+        }, 700);
+      }
+
+      function handleReset() {
+        setResult(null);
+        setTimeout(function () {
+          var i = document.getElementById('link');
+          if (i) i.focus();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 50);
+      }
+
+      return h(React.Fragment, null,
+        h(Header, null),
+        h('main', { className: "flex-1" },
+          h(Hero, null),
+          h(VerifyForm, { onVerify: handleVerify, loading: loading }),
+          h('div', { ref: resultRef, className: "max-w-3xl mx-auto px-4 sm:px-6 mt-6" },
+            result && result.status === 'valid'   ? h(ValidCard,   { data: result.data }) : null,
+            result && result.status === 'invalid' ? h(InvalidCard, { searchedLink: result.searchedLink, onRetry: handleReset }) : null
+          ),
+          h(Stats, null),
+          h(HowItWorks, null)
+        ),
+        h(Footer, null)
+      );
+    }
+
+    // Limpa o fallback e monta a app
+    var rootEl = document.getElementById('root');
+    if (rootEl) rootEl.innerHTML = '';
+    var root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(h(App, null));
+  })();
+  </script>
+</body>
+</html>
