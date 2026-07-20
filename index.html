@@ -75,7 +75,6 @@
       animation: pulseRing 1.6s ease-out infinite;
     }
     html { scroll-behavior: smooth; }
-    /* Fallback caso o React nem monte — mostra algo útil */
     .boot-fallback { display: flex; align-items: center; justify-content: center; min-height: 60vh; color: #475569; font-family: Inter, sans-serif; }
   </style>
 </head>
@@ -99,7 +98,6 @@
   </div>
 
   <script>
-    // Captura erros globais e mostra fallback visível caso o React não monte
     window.addEventListener('error', function (e) {
       var el = document.getElementById('boot-error');
       if (el) el.style.display = 'flex';
@@ -111,7 +109,6 @@
   (function () {
     'use strict';
 
-    // Guard: precisa do React carregado
     if (!window.React || !window.ReactDOM) {
       document.getElementById('boot-error').style.display = 'flex';
       console.error('React ou ReactDOM não foram carregados pelo CDN.');
@@ -125,7 +122,7 @@
     var h = React.createElement;
 
     /* =========================================================
-       BASE DE DADOS — 80 certificados fictícios
+       BASE DE DADOS — 81 certificados fictícios
        ========================================================= */
     var certificados = [
       { id: "CERT-001", link: "https://seudominio.com/validar/2024-CARD-78234", aluno: "Daniele de Moura Santos",                 curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
@@ -208,6 +205,7 @@
       { id: "CERT-078", link: "https://seudominio.com/validar/2023-OBS-91823",  aluno: "Diego Augusto Lima",           curso: "Workshop de Obesidade e Síndrome Metabólica",    instituicao: "Liga de Neonatologia da UFPB",                   dataEmissao: "20/07/2026", cargaHoraria: "20 horas" },
       { id: "CERT-079", link: "https://seudominio.com/validar/2024-TIR-31928",  aluno: "Patricia Kelly Gomes",         curso: "Jornada de Tireoide",                            instituicao: "Liga de Nutrição Materno-Infantil da USP",       dataEmissao: "20/07/2026", cargaHoraria: "50 horas" },
       { id: "CERT-080", link: "https://seudominio.com/validar/2023-ADR-91823",  aluno: "Vinícius Eduardo Castro",      curso: "Simpósio de Adrenal e Hipófise",                 instituicao: "Liga de Aleitamento Materno da UNIFESP",         dataEmissao: "20/07/2026", cargaHoraria: "40 horas" },
+      { id: "CERT-081", link: "https://seudominio.com/validar/2026-LUIZ-91823", aluno: "Luiz Ricardo de Sousa Fernandes", curso: "Estágio Extracurricular — Cardiologia, Dermatologia, Nefrologia, Neurologia, Ortopedia, Otorrinolaringologia, Urologia e Avaliação Cirúrgica", instituicao: "Centro Integrado de Saúde de Picos (CISPI) / CAMEPI", dataEmissao: "20/07/2026", cargaHoraria: "60 horas" },
     ];
 
     /* =========================================================
@@ -380,10 +378,6 @@
         if (!/^https?:\/\//i.test(trimmed)) { setErr('O link deve começar com http:// ou https://'); return; }
         setErr('');
         props.onVerify(trimmed);
-      }
-
-      function fillExample(url) {
-        setLink(url); setErr(''); if (inputRef.current) inputRef.current.focus();
       }
 
       return h('section', { className: "max-w-3xl mx-auto px-4 sm:px-6" },
@@ -700,7 +694,6 @@
       );
     }
 
-    // Limpa o fallback e monta a app
     var rootEl = document.getElementById('root');
     if (rootEl) rootEl.innerHTML = '';
     var root = ReactDOM.createRoot(document.getElementById('root'));
